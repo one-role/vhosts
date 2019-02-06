@@ -1,0 +1,59 @@
+---
+
+- name: vhosts | create the directories sites-available and sites-enabled
+  file:
+    path: "{{ vhosts_conf_path }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+    setype: httpd_sys_content_t
+  loop:
+    - sites-enabled
+    - sites-available
+  notify:
+    - restart_httpd
+
+- name: vhosts | add sites-enabled include to httpd.conf
+  lineinfile:
+    dest: "{{ vhosts_conf_path }}/conf/httpd.conf"
+    state: present
+    line: 'IncludeOptional sites-enabled/*.conf'
+    insertbefore: '^IncludeOptional conf\.d/\*.conf'
+  notify:
+    - restart_httpd
+
+- name: vhosts | create the configurations for sites
+  template:
+    src: vhost.conf.j2
+    dest: "{{ vhosts_conf_path }}/sites-available/{{ item.key }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+    setype: httpd_sys_content_t
+  with_dict: "{{ vhosts_sites }}"
+  when: item.key not in vhosts_remove_sites
+  notify:
+   - restart_httpd
+
+- name: vhosts | create links for sites-enabled
+  file:
+    state: link
+    src: "{{ vhosts_conf_path }}/sites-available/{{ item.key }}.conf"
+    dest: "{{ vhosts_conf_path }}/sites-enabled/{{ item.key }}.conf"
+    setype: httpd_sys_content_t
+  loop: '{{ query("dict", vhosts_sites) }}'
+  when: item.key not in vhosts_remove_sites
+  notify:
+    - restart_httpd
+
+- name: vhosts | remove unwanted sites
+  file:
+    path: "{{ vhosts_conf_path }}/{{ item[0] }}/{{ item[1] }}.conf"
+    state: absent
+  loop: '{{ query("nested",
+                  [ "sites-enabled", "sites-available"],
+                  vhosts_remove_sites )
+        }}'
+  notify:
+    - restart_httpd

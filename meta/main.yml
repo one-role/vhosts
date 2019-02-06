@@ -1,0 +1,17 @@
+---
+dependencies: []
+
+galaxy_info:
+  author: Ton Kersten
+  company: Smart Owl Consulting
+  description: Apache 2.4 virtual hosts manage
+  license: MIT
+  min_ansible_version: 2.4
+  platforms:
+    - name: EL
+      versions:
+      - 7
+  galaxy_tags:
+    - web
+
+allow_duplicates: yes

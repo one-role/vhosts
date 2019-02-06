@@ -1,0 +1,17 @@
+---
+
+vhosts_conf_path: /etc/httpd
+vhosts_sites: {}
+vhosts_remove_sites: []
+
+vhosts_listen_ip: "*"
+vhosts_listen_port: 80
+vhosts_allow_override: "All"
+vhosts_options: "-Indexes +FollowSymLinks"
+vhosts_require: "all granted"
+vhosts_ssl_require: "all granted"
+
+vhosts_ssl_listen_ip: "*"
+vhosts_ssl_listen_port: 443
+vhosts_ssl_allow_override: "All"
+vhosts_ssl_options: "-Indexes +FollowSymLinks"

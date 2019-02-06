@@ -1,0 +1,174 @@
+# vi: set sw=4 ts=4 ai:
+#
+# Ansible information:
+#     Filename : {{ template_path | regex_replace("/.*/ansible[^/]*/", ".../") }}
+#     Hostname : {{ template_host }}
+#     Rolename : {{ role_name }}
+#
+{# Set up VirtualHosts #}
+{% set vhost = item.value %}
+
+{% if vhost.servername is defined and vhost.servername %}
+<VirtualHost {{ vhost.listen_ip | default(vhosts_listen_ip) }}:{{ vhost.listen_port | default(vhosts_listen_port) }}>
+	ServerName {{ vhost.servername }}
+{% if vhost.serveralias is defined %}
+	ServerAlias {{ vhost.serveralias }}
+{% endif %}
+{% if vhost.serveradmin is defined %}
+	ServerAdmin {{ vhost.serveradmin }}
+{% endif %}
+{% if vhost.documentroot is defined %}
+	DocumentRoot {{ vhost.documentroot }}
+{% endif %}
+{% if vhost.aliases is defined %}
+	# Alias declarations for resources outside the DocumentRoot
+{% for alias in vhost.aliases %}
+	{{ alias }}
+{% endfor %}
+{% endif %}
+{% if vhost.headers is defined %}
+{% for header in vhost.headers %}
+    Header {{ header }}
+{% endfor %}
+{% endif %}
+{% if vhost.documentroot is defined %}
+	<Directory "{{ vhost.documentroot }}">
+		AllowOverride {{ vhost.allow_override | default(vhosts_allow_override) }}
+		Options {{ vhost.options | default(vhosts_options) }}
+
+{% if vhost.require is not defined %}
+		Require {{ vhosts_require }}
+{% elif vhost.require is sameas false %}
+		# No require set
+{% else %}
+		Require {{ vhost.require }}
+{% endif %}
+
+{% if vhost.extra_docroot_parameters is defined %}
+		# Documentroot extra parameters
+		{{ vhost.extra_docroot_parameters | regex_replace('\n\s*', '\n\t\t') }}
+{% endif %}
+	</Directory>
+{% endif %}
+
+	# Logging
+	ErrorLog "/var/log/httpd/error_log"
+	ServerSignature Off
+	CustomLog "/var/log/httpd/access_log" "combined"
+
+{% if vhost.proxy_pass is defined %}
+	# Proxy rules
+	ProxyRequests Off
+
+{% for proxy in vhost.proxy_pass %}
+	ProxyPass {{ proxy.path }}	{{ proxy.url }}
+	<Location {{ proxy.path }}>
+		ProxyPassReverse {{ proxy.url }}
+	</Location>
+
+{% endfor %}
+{% endif %}
+{% if vhost.redirect is defined %}
+	# Redirect rules
+	Redirect {{ vhost.redirect.status | default('temp') }} {{ vhost.redirect.src }} {{ vhost.redirect.dest }}
+{% endif %}
+{% if vhost.redirectmatch is defined %}
+	# RedirectMatch rules
+	RedirectMatch {{ vhost.redirectmatch.status | default('temp') }} {{ vhost.redirectmatch.regexp }} {{ vhost.redirectmatch.dest }}
+{% endif %}
+{% if vhost.extra_parameters is defined %}
+	{{ vhost.extra_parameters | regex_replace('\n\s*', '\n\t') }}
+{% endif %}
+</VirtualHost>
+{% endif %} {# vhost.nossl #}
+
+{% if vhost.ssl_servername is defined and vhost.ssl_servername %}
+{# Set up VirtualHosts with SSL #}
+<IfModule !mod_ssl.c>
+	LoadModule ssl_module modules/mod_ssl.so
+</IfModule>
+
+<VirtualHost {{ vhost.ssl_listen_ip | default(vhosts_ssl_listen_ip) }}:{{ vhost.ssl_listen_port | default(vhosts_ssl_listen_port) }}>
+	ServerName {{ vhost.ssl_servername }}
+{% if vhost.ssl_serveralias is defined %}
+	ServerAlias {{ vhost.ssl_serveralias }}
+{% endif %}
+{% if vhost.ssl_serveradmin is defined %}
+	ServerAdmin {{ vhost.ssl_serveradmin }}
+{% endif %}
+{% if vhost.ssl_documentroot is defined %}
+	DocumentRoot {{ vhost.ssl_documentroot }}
+{% endif %}
+{% if vhost.ssl_aliases is defined %}
+	# Alias declarations for resources outside the DocumentRoot
+{% for alias in vhost.ssl_aliases %}
+	{{ alias }}
+{% endfor %}
+{% endif %}
+{% if vhost.ssl_headers is defined %}
+{% for header in vhost.ssl_headers %}
+    Header {{ header }}
+{% endfor %}
+{% endif %}
+
+	SSLEngine on
+	SSLCertificateFile "{{ vhost.ssl_certfile }}"
+	SSLCertificateKeyFile "{{ vhost.ssl_keyfile }}"
+{% if vhost.ssl_chainfile is defined %}
+	SSLCertificateChainFile "{{ vhost.ssl_chainfile }}"
+{% endif %}
+
+{% if vhost.ssl_documentroot is defined %}
+	<Directory "{{ vhost.ssl_documentroot }}">
+		AllowOverride {{ vhost.ssl_allow_override | default(vhosts_ssl_allow_override) }}
+		Options {{ vhost.ssl_options | default(vhosts_ssl_options) }}
+
+{% if vhost.ssl_require is not defined %}
+		Require {{ vhosts_ssl_require }}
+{% elif vhost.ssl_require is sameas false %}
+		# No require set
+{% else %}
+		Require {{ vhost.ssl_require }}
+{% endif %}
+
+{% if vhost.ssl_extra_docroot_parameters is defined %}
+		# Documentroot extra parameters
+		{{ vhost.ssl_extra_docroot_parameters | regex_replace('\n\s*', '\n\t\t') }}
+{% endif %}
+	</Directory>
+{% endif %}
+
+	# Logging
+	ErrorLog "syslog:local5.err -t {{ vhost.ssl_servername }}_ssl_e"
+	ServerSignature Off
+	CustomLog "|/usr/bin/logger -t {{ vhost.ssl_servername }}_ssl_a -p local6.info" "combined"
+
+{% if vhost.ssl_proxy_pass is defined %}
+	# Proxy rules
+	ProxyRequests Off
+
+{% for proxy in vhost.ssl_proxy_pass %}
+	ProxyPass {{ proxy.path }}	{{ proxy.url }}
+	<Location {{ proxy.path }}>
+		ProxyPassReverse		{{ proxy.url }}
+	</Location>
+
+{% endfor %}
+{% endif %}
+{% if vhost.ssl_redirect is defined %}
+	# HTTPS Redirect rules
+	Redirect {{ vhost.ssl_redirect.status | default('temp') }} {{ vhost.ssl_redirect.src }} {{ vhost.ssl_redirect.dest }}
+{% endif %}
+{% if vhost.ssl_redirectmatch is defined %}
+	# HTTPS RedirectMatch rules
+	RedirectMatch {{ vhost.ssl_redirectmatch.status | default('temp') }} {{ vhost.ssl_redirectmatch.regexp }} {{ vhost.ssl_redirectmatch.dest }}
+{% endif %}
+{% if vhost.ssl_extra_parameters is defined %}
+	{{ vhost.ssl_extra_parameters | regex_replace('\n\s*', '\n\t') }}
+{% endif %}
+</VirtualHost>
+{% endif %} {# vhost.nossl #}
+
+# -------------------------------------------------------------------
+# Copyright (c) 2012-today by {{ company }}
+# -------------------------------------------------------------------
