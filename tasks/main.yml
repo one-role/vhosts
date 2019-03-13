@@ -34,7 +34,7 @@
   with_dict: "{{ vhosts_sites }}"
   when: item.key not in vhosts_remove_sites
   notify:
-   - restart_httpd
+    - restart_httpd
 
 - name: vhosts | create links for sites-enabled
   file:
