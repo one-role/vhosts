@@ -31,7 +31,7 @@
     group: root
     mode: 0644
     setype: httpd_sys_content_t
-  with_dict: "{{ vhosts_sites }}"
+  loop: '{{ query("dict", vhosts_sites) }}'
   when: item.key not in vhosts_remove_sites
   notify:
     - restart_httpd
